@@ -1,12 +1,26 @@
 from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel, UUID4
-from uuid import uuid4
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from models import Base, Payment, PaymentStatus
 from database import engine, SessionLocal
+from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
+from uuid import uuid4
+import os
 import requests
 
+load_dotenv()
+
 app = FastAPI(title="Payment Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+Payment.__table__.drop(engine)
 
 Base.metadata.create_all(bind=engine)
 
@@ -17,24 +31,24 @@ def get_db():
     finally:
         db.close()
 
-# Pydantic Schemas
+# Updated Pydantic Schemas
 class InitiatePaymentRequest(BaseModel):
-    orderId: UUID4
-    userId: UUID4
+    orderId: int
+    userId: int
     amount: float
     currency: str = "INR"
 
 class InitiatePaymentResponse(BaseModel):
-    paymentId: UUID4
-    orderId: UUID4
+    paymentId: str
+    orderId: int
     gatewayPaymentUrl: str
     status: PaymentStatus
 
 class PaymentWebhook(BaseModel):
-    paymentId: UUID4
+    paymentId: str
     status: PaymentStatus
     gatewayReference: str
-import os
+
 ORDER_SERVICE_URL = os.environ.get("ORDER_SERVICE_URL", "http://localhost:8002")
 
 @app.post("/payments/initiate", response_model=InitiatePaymentResponse)
@@ -69,7 +83,6 @@ def payment_webhook(webhook: PaymentWebhook, db: Session = Depends(get_db)):
     payment.gateway_reference = webhook.gatewayReference
     db.commit()
 
-    # Notify Order Service
     try:
         response = requests.patch(
             f"{ORDER_SERVICE_URL}/orders/{payment.order_id}",

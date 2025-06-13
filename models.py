@@ -1,5 +1,4 @@
-from sqlalchemy import Column, String, Float, Enum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Integer, String, Float, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from uuid import uuid4
 from enum import Enum as PyEnum
@@ -14,9 +13,10 @@ class PaymentStatus(str, PyEnum):
 class Payment(Base):
     __tablename__ = "payments"
 
-    payment_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    order_id = Column(UUID(as_uuid=True), nullable=False)
-    user_id = Column(UUID(as_uuid=True), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    payment_id = Column(String, default=lambda: str(uuid4()), unique=True, index=True)  # UUID as string
+    order_id = Column(Integer, nullable=False)   # Changed from UUID
+    user_id = Column(Integer, nullable=False)    # Changed from UUID
     amount = Column(Float, nullable=False)
     currency = Column(String, default="INR")
     status = Column(Enum(PaymentStatus), nullable=False)
